@@ -1,0 +1,679 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Тест — загрузка из JSON</title>
+  <style>
+    /* ===== БАЗОВЫЕ СТИЛИ ===== */
+    :root{
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --muted: #6b7280;
+      --accent: #0f62fe;
+      --accent-strong: #083a9e;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --shadow: 0 6px 20px rgba(15,20,40,0.08);
+      --radius: 12px;
+      --gap: 16px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      background: linear-gradient(180deg, rgba(15,98,254,0.03), transparent 40%), var(--bg);
+      color:#0b1220;
+    }
+
+    .app {
+      max-width: 900px;
+      margin: 28px auto;
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+
+    header h1{
+      font-size:20px;
+      margin:0;
+    }
+
+    .controls {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding:10px 14px;
+      border-radius:10px;
+      cursor:pointer;
+      box-shadow: var(--shadow);
+      font-weight:600;
+      transition: transform .08s ease, box-shadow .12s;
+    }
+    button:hover{ transform: translateY(-2px); }
+    button.secondary{
+      background: white;
+      color: var(--accent);
+      border: 1px solid rgba(15,98,254,0.12);
+      box-shadow:none;
+    }
+    button.ghost{
+      background: transparent;
+      color: var(--muted);
+      border: 1px dashed rgba(15,98,254,0.08);
+      font-weight:500;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .question-container {
+      display:flex;
+      gap:18px;
+      align-items:flex-start;
+      flex-direction:column;
+    }
+
+    .meta {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+      margin-bottom:8px;
+    }
+
+    .progress {
+      color:var(--muted);
+      font-size:14px;
+    }
+
+    .question-text {
+      font-size:18px;
+      font-weight:600;
+      margin:0 0 8px 0;
+    }
+
+    .options {
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+    }
+
+    /* вариант-ответ как карточка */
+    .option {
+      display:flex;
+      align-items:center;
+      gap:12px;
+      padding:12px;
+      border-radius:10px;
+      border:2px solid transparent;
+      background: linear-gradient(180deg, rgba(240,246,255,0.6), rgba(255,255,255,0.6));
+      cursor:pointer;
+      transition: transform .08s ease, background .12s ease, border-color .12s;
+    }
+
+    .option:hover{
+      transform: translateY(-3px);
+      background: rgba(240,249,255,1);
+    }
+
+    .option input[type="radio"]{
+      appearance:none;
+      width:18px;
+      height:18px;
+      border-radius:50%;
+      border:2px solid #cbd5e1;
+      display:inline-block;
+      position:relative;
+      flex:0 0 18px;
+    }
+    .option input[type="radio"]:checked{
+      background: var(--accent);
+      border-color: var(--accent-strong);
+      box-shadow: 0 0 0 4px rgba(15,98,254,0.08);
+    }
+
+    .option .text{
+      font-size:15px;
+    }
+
+    .option.selected{
+      border-color: var(--accent-strong);
+      box-shadow: 0 8px 24px rgba(9,30,80,0.06);
+      background: linear-gradient(180deg, rgba(14,84,217,0.06), rgba(255,255,255,0.6));
+    }
+
+    .nav {
+      display:flex;
+      gap:8px;
+      margin-top: 14px;
+      justify-content:space-between;
+      align-items:center;
+    }
+
+    .left-controls {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+
+    .right-controls { display:flex; gap:8px; align-items:center; }
+
+    /* Стиль для результатов */
+    .results {
+      margin-top:16px;
+      display:grid;
+      gap:12px;
+    }
+
+    .result-item{
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      padding:10px;
+      border-radius:10px;
+      background: linear-gradient(180deg, #ffffff, #fbfdff);
+      border: 1px solid rgba(15,98,254,0.04);
+    }
+
+    .result-question {
+      font-weight:600;
+    }
+
+    .result-correct { color: var(--success); font-weight:700; }
+    .result-wrong { color: var(--danger); font-weight:700; }
+
+    /* Модальное окно результатов */
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background: rgba(4,10,25,0.5);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:999;
+      padding:16px;
+    }
+    .modal-backdrop.active{ display:flex; }
+    .modal {
+      max-width:900px;
+      width:100%;
+      max-height:90vh;
+      overflow:auto;
+      padding:18px;
+      border-radius:12px;
+    }
+
+    /* адаптивность */
+    @media (min-width:720px){
+      .options{ grid-template-columns: 1fr 1fr; }
+      header h1{ font-size:22px; }
+    }
+
+    @media (max-width:480px){
+      .app{ padding:12px; margin:10px; }
+      .option{ padding:10px; }
+      button{ padding:8px 10px; font-size:14px; border-radius:8px; }
+    }
+
+    /* мелкие подсказки */
+    .hint { color: var(--muted); font-size:13px; }
+    .small { font-size:13px; color:var(--muted); }
+
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="controls">
+        <button id="shuffleQuestionsBtn" title="Перемешать порядок вопросов">🔀 Перемешать</button>
+        <button id="restartBtn" class="secondary" title="Начать тест сначала (с текущими вопросами)">Начать сначала</button>
+      </div>
+    </header>
+
+    <main class="card">
+      <div class="question-container">
+        <div class="meta">
+          <div class="progress" id="progressLabel">Вопрос 0 из 0</div>
+          <div class="small" id="loadedFrom">Файл не загружен</div>
+        </div>
+
+        <div>
+          <p class="question-text" id="questionText">Загрузите JSON файл с вопросами, нажав кнопку "📁 Загрузить файл"</p>
+        </div>
+
+        <div class="options" id="optionsList">
+          <!-- варианты ответов будут рендериться сюда -->
+        </div>
+
+        <div class="nav">
+          <div class="left-controls">
+            <button id="prevBtn" class="secondary">← Назад</button>
+            <button id="nextBtn" class="secondary">Вперед →</button>
+            <div class="hint" id="answerInfo">Ответ не выбран</div>
+          </div>
+
+          <div class="right-controls">
+            <button id="finishBtn">Завершить тест</button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Модальное окно с результатами -->
+    <div id="resultsModal" class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="card modal" id="resultsContent">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h2 style="margin:0">Результаты теста</h2>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button id="closeResults" class="secondary">Закрыть</button>
+            <button id="restartAll" title="Начать заново" >Начать сначала</button>
+          </div>
+        </div>
+
+        <div id="scoreSummary" style="margin-top:12px;"></div>
+
+        <div id="detailedResults" class="results" style="margin-top:12px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    /* =================== Логика приложения =================== */
+    
+    // ====== НАСТРОЙКА: Укажите путь к вашему JSON файлу ======
+    const JSON_FILE_URL = '/questions.json'; // Измените на путь к вашему файлу
+    // ==========================================================
+
+    // ================== State (состояние приложения) ==================
+    let originalQuestions = []; // копия вопросов
+    let questions = [];         // текущий массив вопросов
+    let optionsMap = {};        // ключ: индекс вопроса -> массив объектов вариантов {id, text} (перемешанный)
+    let selections = {};        // ключ: индекс вопроса -> ID выбранного ответа (например "a")
+    let currentIndex = 0;       // индекс текущего вопроса
+    let loadedFrom = 'none'; 
+
+    // ======== DOM elements ========
+    const progressLabel = document.getElementById('progressLabel');
+    const questionText = document.getElementById('questionText');
+    const optionsList = document.getElementById('optionsList');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const finishBtn = document.getElementById('finishBtn');
+    const shuffleQuestionsBtn = document.getElementById('shuffleQuestionsBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const resultsModal = document.getElementById('resultsModal');
+    const detailedResults = document.getElementById('detailedResults');
+    const scoreSummary = document.getElementById('scoreSummary');
+    const closeResults = document.getElementById('closeResults');
+    const restartAll = document.getElementById('restartAll');
+    const answerInfo = document.getElementById('answerInfo');
+    const loadedFromLabel = document.getElementById('loadedFrom');
+
+    // ======== Утилиты ========
+    function shuffleArray(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+
+    // Глубокое копирование (без поля id, которое не нужно)
+    function deepCloneQuestions(qs){
+      return qs.map(q => ({
+        question_text: q.question_text, 
+        answers: q.answers.map(a => ({...a})), 
+        correct_answer: q.correct_answer 
+      }));
+    }
+
+    // Инициализация
+    function initWithQuestions(qs, fromLabel='file') {
+      originalQuestions = deepCloneQuestions(qs);
+      questions = deepCloneQuestions(qs);
+      loadedFrom = fromLabel;
+      loadedFromLabel.textContent = fromLabel === 'file' ? 'Загружено из файла' : 'Встроенный тест';
+      resetState(false);
+      
+      // Генерируем перемешанные варианты ответов
+      questions.forEach((q, idx) => {
+        optionsMap[idx] = shuffleArray(q.answers);
+      });
+      renderCurrent();
+    }
+
+    function resetState(keepOriginalOrder=false) {
+      selections = {};
+      currentIndex = 0;
+      if (!keepOriginalOrder) {
+        questions = deepCloneQuestions(originalQuestions);
+        optionsMap = {};
+        questions.forEach((q, idx) => optionsMap[idx] = shuffleArray(q.answers));
+      } else {
+        optionsMap = {};
+        questions.forEach((q, idx) => optionsMap[idx] = shuffleArray(q.answers));
+      }
+      updateProgress();
+    }
+
+    function shuffleQuestions() {
+      questions = shuffleArray(questions);
+      optionsMap = {};
+      questions.forEach((q, idx) => optionsMap[idx] = shuffleArray(q.answers));
+      selections = {};
+      currentIndex = 0;
+      updateProgress();
+      renderCurrent();
+    }
+
+    // Вспомогательная функция: найти текст ответа по его ID внутри вопроса
+    function getAnswerText(questionObj, answerId) {
+      if (!answerId) return null;
+      const found = questionObj.answers.find(a => a.id === answerId);
+      return found ? found.text : answerId;
+    }
+
+    // Рендер текущего вопроса
+    function renderCurrent() {
+      if (!questions.length) {
+        questionText.textContent = 'Загрузка вопросов...';
+        optionsList.innerHTML = '';
+        progressLabel.textContent = 'Загрузка...';
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        finishBtn.disabled = true;
+        shuffleQuestionsBtn.disabled = true;
+        restartBtn.disabled = true;
+        answerInfo.textContent = '';
+        return;
+      }
+
+      // Включаем кнопки
+      shuffleQuestionsBtn.disabled = false;
+      restartBtn.disabled = false;
+      finishBtn.disabled = false;
+
+      updateProgress();
+      const q = questions[currentIndex];
+      questionText.textContent = q.question_text;
+
+      const opts = optionsMap[currentIndex] || shuffleArray(q.answers);
+      optionsList.innerHTML = '';
+      
+      opts.forEach((optObj, optIdx) => {
+        const uniqueId = `opt-${currentIndex}-${optIdx}`;
+
+        const wrapper = document.createElement('label');
+        wrapper.className = 'option';
+        
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'option';
+        radio.id = uniqueId;
+        radio.value = optObj.id;
+
+        // Если пользователь уже выбрал этот ID
+        if (selections[currentIndex] && selections[currentIndex] === optObj.id) {
+          radio.checked = true;
+          wrapper.classList.add('selected');
+        }
+
+        radio.addEventListener('change', () => {
+          selections[currentIndex] = optObj.id;
+          document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+          wrapper.classList.add('selected');
+          updateAnswerInfo();
+        });
+
+        const txt = document.createElement('div');
+        txt.className = 'text';
+        txt.innerText = optObj.text;
+
+        wrapper.appendChild(radio);
+        wrapper.appendChild(txt);
+
+        wrapper.addEventListener('click', (e) => {
+          if (e.target.tagName.toLowerCase() === 'input') return;
+          radio.checked = true;
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        optionsList.appendChild(wrapper);
+      });
+
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === (questions.length - 1);
+
+      updateAnswerInfo();
+    }
+
+    function updateProgress() {
+      progressLabel.textContent = `Вопрос ${currentIndex + 1} из ${questions.length}`;
+    }
+
+    function updateAnswerInfo(){
+      if (!questions.length) return;
+      const selId = selections[currentIndex];
+      const q = questions[currentIndex];
+      if (selId) {
+        const txt = getAnswerText(q, selId);
+        answerInfo.textContent = `Вы выбрали: "${txt}"`;
+      } else {
+        answerInfo.textContent = 'Ответ не выбран';
+      }
+    }
+
+    // Подсчёт результатов
+    function finishAndShowResults() {
+      let correct = 0;
+      let total = questions.length;
+      const resultsData = [];
+
+      questions.forEach((q, idx) => {
+        const userAnsId = selections[idx] || null;
+        const isCorrect = userAnsId !== null && userAnsId.toLowerCase() === q.correct_answer.toLowerCase();
+        
+        if (isCorrect) correct++;
+        
+        resultsData.push({
+          index: idx,
+          question: q.question_text,
+          correctAnswerId: q.correct_answer,
+          userAnswerId: userAnsId,
+          isCorrect,
+          correctAnswerText: getAnswerText(q, q.correct_answer),
+          userAnswerText: getAnswerText(q, userAnsId)
+        });
+      });
+
+      const percent = total ? Math.round((correct / total) * 100) : 0;
+
+      scoreSummary.innerHTML = `
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div style="font-size:20px;font-weight:700;">${correct} / ${total}</div>
+          <div class="small">Правильных ответов</div>
+          <div style="margin-left:12px;font-weight:700;color:${percent >= 60 ? 'var(--success)' : 'var(--danger)'}">${percent}%</div>
+          <div class="small">Процент</div>
+        </div>
+      `;
+
+      detailedResults.innerHTML = '';
+      resultsData.forEach(r => {
+        const item = document.createElement('div');
+        item.className = 'result-item';
+
+        const qtitle = document.createElement('div');
+        qtitle.className = 'result-question';
+        qtitle.innerText = `Вопрос ${r.index + 1}: ${r.question}`;
+        item.appendChild(qtitle);
+
+        const userLine = document.createElement('div');
+        if (r.userAnswerId === null) {
+          userLine.innerHTML = `<span class="result-wrong">Ответ не дан</span>`;
+        } else if (r.isCorrect){
+          userLine.innerHTML = `<span class="result-correct">Ваш ответ: ${r.userAnswerText} — верно</span>`;
+        } else {
+          userLine.innerHTML = `<span class="result-wrong">Ваш ответ: ${r.userAnswerText} — неверно</span>`;
+        }
+        item.appendChild(userLine);
+
+        const correctLine = document.createElement('div');
+        correctLine.innerHTML = `Правильный ответ: <strong>${r.correctAnswerText}</strong>`;
+        item.appendChild(correctLine);
+
+        detailedResults.appendChild(item);
+      });
+
+      resultsModal.classList.add('active');
+    }
+
+    // ======== Обработчики событий ========
+    prevBtn.addEventListener('click', () => {
+      if (currentIndex > 0) { currentIndex--; renderCurrent(); }
+    });
+
+    nextBtn.addEventListener('click', () => {
+      if (currentIndex < questions.length - 1) { currentIndex++; renderCurrent(); }
+    });
+
+    finishBtn.addEventListener('click', () => {
+      if (!questions.length) return;
+      finishAndShowResults();
+    });
+
+    closeResults.addEventListener('click', () => {
+      resultsModal.classList.remove('active');
+    });
+
+    shuffleQuestionsBtn.addEventListener('click', () => {
+      if (!questions.length) return;
+      if (!confirm('Перемешать порядок вопросов? Текущие ответы будут сброшены.')) return;
+      shuffleQuestions();
+    });
+
+    restartBtn.addEventListener('click', () => {
+      if (!questions.length) return;
+      if (!confirm('Начать тест сначала? Текущие ответы будут сброшены.')) return;
+      resetState(true);
+      renderCurrent();
+    });
+
+    restartAll.addEventListener('click', () => {
+      if (!confirm('Полностью начать сначала (вернуть исходный порядок)?')) return;
+      initWithQuestions(originalQuestions, loadedFrom);
+      resultsModal.classList.remove('active');
+    });
+
+    // Загрузка JSON файла по URL
+    async function loadQuestionsFromURL(url) {
+      try {
+        loadedFromLabel.textContent = 'Загрузка...';
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`Не удалось загрузить файл: ${response.status} ${response.statusText}`);
+        }
+        
+        const parsed = await response.json();
+        
+        if (!Array.isArray(parsed)) {
+          throw new Error('JSON должен быть массивом');
+        }
+        
+        if (parsed.length === 0) {
+          throw new Error('JSON массив пустой');
+        }
+        
+        // Проверка структуры первого элемента
+        const first = parsed[0];
+        if (!first.question_text || !Array.isArray(first.answers) || !first.correct_answer) {
+          throw new Error('Неверный формат. Нужны поля: question_text, answers (массив), correct_answer');
+        }
+
+        // Проверяем структуру answers
+        if (first.answers.length === 0 || !first.answers[0].id || !first.answers[0].text) {
+          throw new Error('Неверный формат answers. Каждый элемент должен иметь поля: id, text');
+        }
+
+        initWithQuestions(parsed, 'file');
+        console.log(`Тест успешно загружен! Вопросов: ${parsed.length}`);
+        
+      } catch (err) {
+        questionText.textContent = `Ошибка загрузки: ${err.message}`;
+        loadedFromLabel.textContent = 'Ошибка загрузки';
+        console.error('Ошибка загрузки JSON:', err);
+      }
+    }
+
+    // Валидация загружаемого JSON файла (оставляем на случай если понадобится)
+    /*
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          if (!Array.isArray(parsed)) throw new Error('JSON должен быть массивом');
+          
+          if (parsed.length === 0) throw new Error('JSON массив пустой');
+          
+          const first = parsed[0];
+          if (!first.question_text || !Array.isArray(first.answers) || !first.correct_answer) {
+             throw new Error('Неверный формат. Нужны поля: question_text, answers (массив), correct_answer');
+          }
+
+          if (first.answers.length === 0 || !first.answers[0].id || !first.answers[0].text) {
+            throw new Error('Неверный формат answers. Каждый элемент должен иметь поля: id, text');
+          }
+
+          initWithQuestions(parsed, 'file');
+          alert(`Тест успешно загружен! Вопросов: ${parsed.length}`);
+        } catch (err) {
+          alert('Ошибка загрузки: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+    */
+
+    resultsModal.addEventListener('click', (e) => {
+      if (e.target === resultsModal) resultsModal.classList.remove('active');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (!questions.length) return;
+      if (e.key === 'ArrowLeft') prevBtn.click();
+      if (e.key === 'ArrowRight') nextBtn.click();
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) finishBtn.click();
+    });
+
+    // Запуск - автоматическая загрузка из указанного файла
+    loadQuestionsFromURL(JSON_FILE_URL);
+  </script>
+</body>
+</html>
